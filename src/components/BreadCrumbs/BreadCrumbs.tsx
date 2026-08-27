@@ -1,17 +1,23 @@
 import { Link } from 'react-router-dom';
 
-import type {
-    Workspace,
-} from '../../api/workspaces.api';
 
 import './BreadCrumbs.css';
 
 type BreadcrumbsProps = {
-    currentWorkspace: Workspace;
+    currentWorkspace: {
+        id: string,
+        name: string,
+    };
+
+    project?: {
+        id: string;
+        name: string;
+    };
 };
 
 function Breadcrumbs({
     currentWorkspace,
+    project,
 }: BreadcrumbsProps) {
     return (
         <nav className="breadcrumbs">
@@ -26,6 +32,18 @@ function Breadcrumbs({
             >
                 {currentWorkspace.name}
             </Link>
+
+            {project && (
+                <>
+                    <span>/</span>
+
+                    <Link
+                        to={`/workspaces/${currentWorkspace.id}/projects/${project.id}`}
+                    >
+                        {project.name}
+                    </Link>
+                </>
+            )}
         </nav>
     );
 }
