@@ -15,7 +15,7 @@ function App() {
         <Route path="/login" element={<Login />} />
 
         <Route path="/register" element={<Register />} />
-
+        
         <Route element={<AppLayout />}>
           <Route path="/workspaces/:workspaceId" element={<Workspace />} />
           <Route path="/workspaces/" element={<Workspace />} />

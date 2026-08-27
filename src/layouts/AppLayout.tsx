@@ -1,12 +1,18 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 
 import Header from '../components/Header/Header';
-import Sidebar from '../components/Sidebar/Sidebar';
+import Sidebar from '../components/SideBar/SideBar';
+
+import './AppLayout.css';
 
 function AppLayout() {
+    const location = useLocation();
+
     return (
         <div className="app-layout">
-            <Sidebar />
+            <Sidebar
+                currentPath={location.pathname}
+            />
 
             <div className="app-content">
                 <Header />
