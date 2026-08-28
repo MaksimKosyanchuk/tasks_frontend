@@ -52,37 +52,56 @@ export type TaskStatusHistoryItem = {
 };
 
 export async function listTasks(
-  workspaceId: string,
-  projectId: string,
-  accessToken: string,
-  params: {
-    cursor?: string | null;
-    limit?: number;
-  } = {},
+    workspaceId: string,
+    projectId: string,
+    accessToken: string,
+    params: {
+        cursor?: string | null;
+        limit?: number;
+        status?: TaskStatus;
+        priority?: TaskPriority;
+        assigneeId?: string;
+    } = {},
 ): Promise<TaskPage> {
-  const searchParams = new URLSearchParams();
+    const searchParams = new URLSearchParams();
 
-  if (params.cursor) {
-    searchParams.set("cursor", params.cursor);
-  }
+    if (params.cursor) {
+        searchParams.set("cursor", params.cursor);
+    }
 
-  if (params.limit) {
-    searchParams.set("limit", String(params.limit));
-  }
+    if (params.limit) {
+        searchParams.set("limit", String(params.limit));
+    }
 
-  const response = await apiFetch(
-    `/workspaces/${workspaceId}/projects/${projectId}/tasks${searchParams.toString() ? `?${searchParams.toString()}` : ""}`,
-    {},
-    accessToken,
-  );
+    if (params.status) {
+        searchParams.set("status", params.status);
+    }
 
-  if (!response.ok) {
-    const error = await response.json();
+    if (params.priority) {
+        searchParams.set("priority", params.priority);
+    }
 
-    throw new Error(error.message || "Failed to load tasks");
-  }
+    if (params.assigneeId) {
+        searchParams.set("assigneeId", params.assigneeId);
+    }
 
-  return response.json();
+    const response = await apiFetch(
+        `/workspaces/${workspaceId}/projects/${projectId}/tasks${
+            searchParams.toString()
+                ? `?${searchParams.toString()}`
+                : ""
+        }`,
+        {},
+        accessToken,
+    );
+
+    if (!response.ok) {
+        const error = await response.json();
+
+        throw new Error(error.message || "Failed to load tasks");
+    }
+
+    return response.json();
 }
 
 export async function createTask(

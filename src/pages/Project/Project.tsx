@@ -119,6 +119,12 @@ function Project() {
 
     const [filterAssignee, setFilterAssignee] = useState<string | 'ALL'>('ALL');
 
+    const taskFilters = {
+        status: filterStatus !== 'ALL' ? filterStatus : undefined,
+        priority: filterPriority !== 'ALL' ? filterPriority : undefined,
+        assigneeId: filterAssignee !== 'ALL' ? filterAssignee : undefined,
+    };
+
     useEffect(() => {
         if (!accessToken || !workspaceId || !projectId) {
             return;
@@ -126,27 +132,13 @@ function Project() {
 
         let isActive = true;
 
-        Promise.resolve().then(() => {
-            if (isActive) {
-                setIsLoading(true);
-            }
-        });
+        setIsLoading(true);
 
-        Promise.all([
-            getProject(workspaceId, projectId, accessToken),
-            listTasks(workspaceId, projectId, accessToken, {
-                limit: 20,
-            }),
-        ])
-            .then(([projectData, taskPage]) => {
-                if (!isActive) {
-                    return;
+        getProject(workspaceId, projectId, accessToken)
+            .then((projectData) => {
+                if (isActive) {
+                    setProject(projectData);
                 }
-
-                setProject(projectData);
-                setTasks(taskPage.items);
-                setTaskCursor(taskPage.nextCursor);
-                setHasMoreTasks(taskPage.hasMore);
             })
             .catch(console.error)
             .finally(() => {
@@ -159,6 +151,49 @@ function Project() {
             isActive = false;
         };
     }, [accessToken, workspaceId, projectId]);
+
+    useEffect(() => {
+        if (!accessToken || !workspaceId || !projectId) {
+            return;
+        }
+
+        let isActive = true;
+
+        setIsLoadingTasks(true);
+
+        listTasks(workspaceId, projectId, accessToken, {
+            limit: 20,
+            status: filterStatus !== 'ALL' ? filterStatus : undefined,
+            priority: filterPriority !== 'ALL' ? filterPriority : undefined,
+            assigneeId: filterAssignee !== 'ALL' ? filterAssignee : undefined,
+        })
+            .then((taskPage) => {
+                if (!isActive) {
+                    return;
+                }
+
+                setTasks(taskPage.items);
+                setTaskCursor(taskPage.nextCursor);
+                setHasMoreTasks(taskPage.hasMore);
+            })
+            .catch(console.error)
+            .finally(() => {
+                if (isActive) {
+                    setIsLoadingTasks(false);
+                }
+            });
+
+        return () => {
+            isActive = false;
+        };
+    }, [
+        accessToken,
+        workspaceId,
+        projectId,
+        filterStatus,
+        filterPriority,
+        filterAssignee,
+    ]);
 
     useEffect(() => {
         if (!accessToken || !projectId) {
@@ -219,22 +254,6 @@ function Project() {
         return <Navigate to="/workspaces" replace />;
     }
 
-    const filteredTasks = tasks.filter((task) => {
-        if (filterStatus !== 'ALL' && task.status !== filterStatus) {
-            return false;
-        }
-
-        if (filterPriority !== 'ALL' && task.priority !== filterPriority) {
-            return false;
-        }
-
-        if (filterAssignee !== 'ALL' && task.assigneeId !== filterAssignee) {
-            return false;
-        }
-
-        return true;
-    });
-
     const selectedTask = selectedTaskId == null ? null : (tasks.find((task) => task.id === selectedTaskId) ?? null);
 
     const loadMoreTasks = async () => {
@@ -246,9 +265,12 @@ function Project() {
 
         try {
             const nextPage = await listTasks(workspaceId, projectId, accessToken, {
-                cursor: taskCursor,
-                limit: 20,
-            });
+            cursor: taskCursor,
+            limit: 20,
+            status: filterStatus !== 'ALL' ? filterStatus : undefined,
+            priority: filterPriority !== 'ALL' ? filterPriority : undefined,
+            assigneeId: filterAssignee !== 'ALL' ? filterAssignee : undefined,
+        });
 
             setTasks((currentTasks) => [...currentTasks, ...nextPage.items]);
             setTaskCursor(nextPage.nextCursor);
@@ -728,7 +750,7 @@ function Project() {
                         <TaskColumn
                             title="To Do"
                             status="TODO"
-                            tasks={filteredTasks}
+                            tasks={tasks}
                             members={project.members}
                             editingTask={editingTask}
                             onBeginTaskEdit={beginTaskEdit}
@@ -756,7 +778,7 @@ function Project() {
                         <TaskColumn
                             title="In Progress"
                             status="IN_PROGRESS"
-                            tasks={filteredTasks}
+                            tasks={tasks}
                             members={project.members}
                             editingTask={editingTask}
                             onBeginTaskEdit={beginTaskEdit}
@@ -784,7 +806,7 @@ function Project() {
                         <TaskColumn
                             title="Done"
                             status="DONE"
-                            tasks={filteredTasks}
+                            tasks={tasks}
                             members={project.members}
                             editingTask={editingTask}
                             onBeginTaskEdit={beginTaskEdit}
