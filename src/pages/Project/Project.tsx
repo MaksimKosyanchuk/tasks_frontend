@@ -12,6 +12,9 @@ import {
 } from "../../api/projects.api";
 
 import {
+  createTask,
+  deleteTask,
+  updateTask,
   type Task,
   type TaskStatus,
   type TaskPriority,
@@ -76,6 +79,8 @@ function Project() {
     dueDate: "",
     assigneeId: "",
   });
+
+  const [isCreatingTask, setIsCreatingTask] = useState(false);
 
   const [filterStatus, setFilterStatus] = useState<TaskStatus | "ALL">("ALL");
 
@@ -165,7 +170,7 @@ function Project() {
     setEditingTask(null);
   };
 
-  const applyTaskFieldChange = (
+  const applyTaskFieldChange = async (
     taskId: string,
     field: TaskField,
     value: string,
@@ -173,11 +178,7 @@ function Project() {
     const normalizedValue =
       field === "assigneeId" && value === "" ? null : value;
 
-    console.log("task:update", {
-      taskId,
-      field,
-      value: normalizedValue,
-    });
+    const previousTasks = tasks;
 
     setTasks((currentTasks) =>
       currentTasks.map((task) => {
@@ -205,6 +206,25 @@ function Project() {
         };
       }),
     );
+
+    try {
+      await updateTask(
+        workspaceId!,
+        projectId!,
+        taskId,
+        {
+          [field]: normalizedValue,
+        } as {
+          title?: string;
+          priority?: TaskPriority;
+          assigneeId?: string | null;
+        },
+        accessToken!,
+      );
+    } catch (error) {
+      console.error(error);
+      setTasks(previousTasks);
+    }
 
     setEditingTask(null);
   };
@@ -243,7 +263,7 @@ function Project() {
     }
   };
 
-  const handleCreateTask = () => {
+  const handleCreateTask = async () => {
     if (
       !taskCreateForm.title.trim() ||
       !taskCreateForm.dueDate ||
@@ -252,22 +272,37 @@ function Project() {
       return;
     }
 
-    console.log("task:create", {
-      title: taskCreateForm.title.trim(),
-      description: taskCreateForm.description.trim() || undefined,
-      priority: taskCreateForm.priority,
-      dueDate: taskCreateForm.dueDate,
-      assigneeId: taskCreateForm.assigneeId,
-    });
+    setIsCreatingTask(true);
 
-    setIsCreateTaskOpen(false);
-    setTaskCreateForm({
-      title: "",
-      description: "",
-      priority: "MEDIUM",
-      dueDate: "",
-      assigneeId: resolvePreferredAssignee(),
-    });
+    try {
+      const createdTask = await createTask(
+        workspaceId!,
+        projectId!,
+        {
+          title: taskCreateForm.title.trim(),
+          description: taskCreateForm.description.trim() || undefined,
+          priority: taskCreateForm.priority,
+          dueDate: taskCreateForm.dueDate,
+          assigneeId: taskCreateForm.assigneeId,
+        },
+        accessToken!,
+      );
+
+      setTasks((currentTasks) => [createdTask, ...currentTasks]);
+
+      setIsCreateTaskOpen(false);
+      setTaskCreateForm({
+        title: "",
+        description: "",
+        priority: "MEDIUM",
+        dueDate: "",
+        assigneeId: resolvePreferredAssignee(),
+      });
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsCreatingTask(false);
+    }
   };
 
   const handleAddMember = async () => {
@@ -388,13 +423,47 @@ function Project() {
       ),
     );
 
-    console.log("task:update", {
-      taskId: draggedTask.id,
-      field: "status",
-      value: status,
-    });
+    try {
+      await updateTask(
+        workspaceId!,
+        projectId!,
+        draggedTask.id,
+        {
+          status,
+        },
+        accessToken,
+      );
+    } catch (error) {
+      console.error(error);
 
-    setDraggedTask(null);
+      setTasks((currentTasks) =>
+        currentTasks.map((task) =>
+          task.id === draggedTask.id
+            ? {
+                ...task,
+                status: previousStatus,
+              }
+            : task,
+        ),
+      );
+    } finally {
+      setDraggedTask(null);
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    const previousTasks = tasks;
+
+    setTasks((currentTasks) =>
+      currentTasks.filter((task) => task.id !== taskId),
+    );
+
+    try {
+      await deleteTask(workspaceId!, projectId!, taskId, accessToken!);
+    } catch (error) {
+      console.error(error);
+      setTasks(previousTasks);
+    }
   };
 
   return (
@@ -492,6 +561,7 @@ function Project() {
               onTaskEditCancel={cancelTaskEdit}
               onTaskTitleSubmit={handleTaskTitleSubmit}
               onTaskEditKeyDown={handleTaskEditKeyDown}
+              onDeleteTask={handleDeleteTask}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
               onDrop={handleDrop}
@@ -518,6 +588,7 @@ function Project() {
               onTaskEditCancel={cancelTaskEdit}
               onTaskTitleSubmit={handleTaskTitleSubmit}
               onTaskEditKeyDown={handleTaskEditKeyDown}
+              onDeleteTask={handleDeleteTask}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
               onDrop={handleDrop}
@@ -544,6 +615,7 @@ function Project() {
               onTaskEditCancel={cancelTaskEdit}
               onTaskTitleSubmit={handleTaskTitleSubmit}
               onTaskEditKeyDown={handleTaskEditKeyDown}
+              onDeleteTask={handleDeleteTask}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
               onDrop={handleDrop}
@@ -738,12 +810,13 @@ function Project() {
               className="modal-button primary"
               onClick={handleCreateTask}
               disabled={
+                isCreatingTask ||
                 !taskCreateForm.title.trim() ||
                 !taskCreateForm.dueDate ||
                 !taskCreateForm.assigneeId
               }
             >
-              Create
+              {isCreatingTask ? "Creating..." : "Create"}
             </button>
           </div>
         </div>
@@ -767,6 +840,7 @@ type TaskColumnProps = {
     event: KeyboardEvent<HTMLInputElement>,
     task: Task,
   ) => void;
+  onDeleteTask: (taskId: string) => void;
 
   onDragStart: (event: DragEvent<HTMLElement>, task: Task) => void;
 
@@ -787,6 +861,7 @@ function TaskColumn({
   onTaskEditCancel,
   onTaskTitleSubmit,
   onTaskEditKeyDown,
+  onDeleteTask,
   onDragStart,
   onDragEnd,
   onDrop,
@@ -904,6 +979,14 @@ function TaskColumn({
                     : "Unassigned"}
                 </button>
               )}
+
+              <button
+                type="button"
+                className="task-delete-button"
+                onClick={() => onDeleteTask(task.id)}
+              >
+                Delete
+              </button>
 
               {task.dueDate && (
                 <span>{new Date(task.dueDate).toLocaleDateString()}</span>

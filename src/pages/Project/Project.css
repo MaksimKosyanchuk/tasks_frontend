@@ -321,6 +321,24 @@
   cursor: text;
 }
 
+.task-delete-button {
+  padding: 0;
+
+  border: 0;
+  background: transparent;
+
+  color: #a84f4f;
+
+  font-size: 11px;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.task-delete-button:hover {
+  color: #8d3939;
+}
+
 .task-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
