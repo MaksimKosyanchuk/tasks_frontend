@@ -74,6 +74,7 @@ function Workspace() {
             .catch((error) => {
                 console.error(error);
                 setCurrentWorkspace(null);
+                navigate('/');
             });
     }, [accessToken, workspaceId]);
 

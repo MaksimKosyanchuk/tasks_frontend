@@ -8,6 +8,8 @@ import Workspace from "./pages/WorkSpace/WorkSpace";
 import Project from "./pages/Project/Project";
 import HomePage from "./pages/HomePage/HomePage";
 
+import ProtectedRoute from "./context/ProtectedRoute";
+
 function App() {
   return (
     <BrowserRouter>
@@ -16,14 +18,16 @@ function App() {
 
         <Route path="/register" element={<Register />} />
         
-        <Route element={<AppLayout />}>
-          <Route path="/workspaces/:workspaceId" element={<Workspace />} />
-          <Route path="/workspaces/" element={<Workspace />} />
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AppLayout />}>
+            <Route path="/workspaces/:workspaceId" element={<Workspace />} />
+            <Route path="/workspaces/" element={<Workspace />} />
 
-          <Route
-            path="/workspaces/:workspaceId/projects/:projectId"
-            element={<Project />}
-          />
+            <Route
+              path="/workspaces/:workspaceId/projects/:projectId"
+              element={<Project />}
+            />
+          </Route>
         </Route>
 
         <Route path="*" element={<HomePage/>} />
