@@ -267,6 +267,12 @@
     margin: 0;
 }
 
+.workspace-projects .projects-list {
+    gap: 10px;
+    display: flex;
+    flex-direction: column;
+}
+
 .add-project-button {
     display: flex;
     align-items: center;

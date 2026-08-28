@@ -1,6 +1,7 @@
 import { useEffect, useState, type DragEvent, type KeyboardEvent } from "react";
 
 import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { io } from "socket.io-client";
 
 import {
   getProject,
@@ -12,9 +13,17 @@ import {
 } from "../../api/projects.api";
 
 import {
+  createTaskComment,
   createTask,
   deleteTask,
+  deleteTaskComment,
+  getTaskHistory,
+  listTaskComments,
+  listTasks,
+  type TaskComment,
+  type TaskStatusHistoryItem,
   updateTask,
+  updateTaskComment,
   type Task,
   type TaskStatus,
   type TaskPriority,
@@ -66,6 +75,28 @@ function Project() {
 
   const [tasks, setTasks] = useState<Task[]>([]);
 
+  const [taskCursor, setTaskCursor] = useState<string | null>(null);
+
+  const [hasMoreTasks, setHasMoreTasks] = useState(false);
+
+  const [isLoadingTasks, setIsLoadingTasks] = useState(false);
+
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+
+  const [taskComments, setTaskComments] = useState<TaskComment[]>([]);
+
+  const [taskHistory, setTaskHistory] = useState<TaskStatusHistoryItem[]>([]);
+
+  const [isTaskDetailsLoading, setIsTaskDetailsLoading] = useState(false);
+
+  const [taskDetailsError, setTaskDetailsError] = useState<string | null>(null);
+
+  const [commentDraft, setCommentDraft] = useState("");
+
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+
+  const [editingCommentContent, setEditingCommentContent] = useState("");
+
   const [isLoading, setIsLoading] = useState(true);
 
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
@@ -95,16 +126,106 @@ function Project() {
       return;
     }
 
-    getProject(workspaceId, projectId, accessToken)
-      .then((project) => {
-        setProject(project);
-        setTasks(project.tasks);
+    let isActive = true;
+
+    Promise.resolve().then(() => {
+      if (isActive) {
+        setIsLoading(true);
+      }
+    });
+
+    Promise.all([
+      getProject(workspaceId, projectId, accessToken),
+      listTasks(workspaceId, projectId, accessToken, {
+        limit: 20,
+      }),
+    ])
+      .then(([projectData, taskPage]) => {
+        if (!isActive) {
+          return;
+        }
+
+        setProject(projectData);
+        setTasks(taskPage.items);
+        setTaskCursor(taskPage.nextCursor);
+        setHasMoreTasks(taskPage.hasMore);
       })
       .catch(console.error)
       .finally(() => {
-        setIsLoading(false);
+        if (isActive) {
+          setIsLoading(false);
+        }
       });
+
+    return () => {
+      isActive = false;
+    };
   }, [accessToken, workspaceId, projectId]);
+
+  useEffect(() => {
+    if (!accessToken || !projectId) {
+      return;
+    }
+
+    const socket = io("http://localhost:3001", {
+      auth: {
+        token: accessToken,
+      },
+      withCredentials: true,
+    });
+
+    socket.on("connect", () => {
+      socket.emit("project:join", {
+        projectId,
+      });
+    });
+
+    socket.on(
+      "project:event",
+      (event: {
+        type: string;
+        projectId: string;
+        taskId?: string;
+        task?: Task;
+      }) => {
+        if (event.projectId !== projectId) {
+          return;
+        }
+
+        if (event.type === "task.deleted" && event.taskId) {
+          setTasks((currentTasks) =>
+            currentTasks.filter((task) => task.id !== event.taskId),
+          );
+
+          if (selectedTaskId === event.taskId) {
+            setSelectedTaskId(null);
+          }
+
+          return;
+        }
+
+        if (event.task) {
+          setTasks((currentTasks) => {
+            const existingIndex = currentTasks.findIndex(
+              (task) => task.id === event.task!.id,
+            );
+
+            if (existingIndex === -1) {
+              return [event.task!, ...currentTasks];
+            }
+
+            return currentTasks.map((task) =>
+              task.id === event.task!.id ? event.task! : task,
+            );
+          });
+        }
+      },
+    );
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [accessToken, projectId, selectedTaskId]);
 
   if (isLoading) {
     return <div className="project-loading">Loading project...</div>;
@@ -129,6 +250,167 @@ function Project() {
 
     return true;
   });
+
+  const selectedTask =
+    selectedTaskId == null
+      ? null
+      : (tasks.find((task) => task.id === selectedTaskId) ?? null);
+
+  const loadMoreTasks = async () => {
+    if (
+      !accessToken ||
+      !workspaceId ||
+      !projectId ||
+      !hasMoreTasks ||
+      isLoadingTasks
+    ) {
+      return;
+    }
+
+    setIsLoadingTasks(true);
+
+    try {
+      const nextPage = await listTasks(workspaceId, projectId, accessToken, {
+        cursor: taskCursor,
+        limit: 20,
+      });
+
+      setTasks((currentTasks) => [...currentTasks, ...nextPage.items]);
+      setTaskCursor(nextPage.nextCursor);
+      setHasMoreTasks(nextPage.hasMore);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoadingTasks(false);
+    }
+  };
+
+  const openTaskDetails = async (task: Task) => {
+    if (!accessToken || !workspaceId || !projectId) {
+      return;
+    }
+
+    setSelectedTaskId(task.id);
+    setTaskDetailsError(null);
+    setIsTaskDetailsLoading(true);
+    setCommentDraft("");
+    setEditingCommentId(null);
+    setEditingCommentContent("");
+
+    try {
+      const [comments, history] = await Promise.all([
+        listTaskComments(workspaceId, projectId, task.id, accessToken),
+        getTaskHistory(workspaceId, projectId, task.id, accessToken),
+      ]);
+
+      setTaskComments(comments);
+      setTaskHistory(history);
+    } catch (error) {
+      console.error(error);
+      setTaskDetailsError(
+        error instanceof Error ? error.message : "Failed to load task details",
+      );
+    } finally {
+      setIsTaskDetailsLoading(false);
+    }
+  };
+
+  const closeTaskDetails = () => {
+    setSelectedTaskId(null);
+    setTaskComments([]);
+    setTaskHistory([]);
+    setTaskDetailsError(null);
+    setCommentDraft("");
+    setEditingCommentId(null);
+    setEditingCommentContent("");
+  };
+
+  const handleAddComment = async () => {
+    if (
+      !selectedTask ||
+      !accessToken ||
+      !workspaceId ||
+      !projectId ||
+      !commentDraft.trim()
+    ) {
+      return;
+    }
+
+    try {
+      const comment = await createTaskComment(
+        workspaceId,
+        projectId,
+        selectedTask.id,
+        commentDraft.trim(),
+        accessToken,
+      );
+
+      setTaskComments((currentComments) => [comment, ...currentComments]);
+      setCommentDraft("");
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const beginCommentEdit = (comment: TaskComment) => {
+    setEditingCommentId(comment.id);
+    setEditingCommentContent(comment.content);
+  };
+
+  const handleUpdateComment = async (commentId: string) => {
+    if (
+      !selectedTask ||
+      !accessToken ||
+      !workspaceId ||
+      !projectId ||
+      !editingCommentContent.trim()
+    ) {
+      return;
+    }
+
+    try {
+      const updatedComment = await updateTaskComment(
+        workspaceId,
+        projectId,
+        selectedTask.id,
+        commentId,
+        editingCommentContent.trim(),
+        accessToken,
+      );
+
+      setTaskComments((currentComments) =>
+        currentComments.map((comment) =>
+          comment.id === commentId ? updatedComment : comment,
+        ),
+      );
+      setEditingCommentId(null);
+      setEditingCommentContent("");
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!selectedTask || !accessToken || !workspaceId || !projectId) {
+      return;
+    }
+
+    try {
+      await deleteTaskComment(
+        workspaceId,
+        projectId,
+        selectedTask.id,
+        commentId,
+        accessToken,
+      );
+
+      setTaskComments((currentComments) =>
+        currentComments.filter((comment) => comment.id !== commentId),
+      );
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const resolvePreferredAssignee = () => {
     if (
@@ -458,6 +740,10 @@ function Project() {
       currentTasks.filter((task) => task.id !== taskId),
     );
 
+    if (selectedTaskId === taskId) {
+      closeTaskDetails();
+    }
+
     try {
       await deleteTask(workspaceId!, projectId!, taskId, accessToken!);
     } catch (error) {
@@ -562,6 +848,7 @@ function Project() {
               onTaskTitleSubmit={handleTaskTitleSubmit}
               onTaskEditKeyDown={handleTaskEditKeyDown}
               onDeleteTask={handleDeleteTask}
+              onOpenTaskDetails={openTaskDetails}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
               onDrop={handleDrop}
@@ -589,6 +876,7 @@ function Project() {
               onTaskTitleSubmit={handleTaskTitleSubmit}
               onTaskEditKeyDown={handleTaskEditKeyDown}
               onDeleteTask={handleDeleteTask}
+              onOpenTaskDetails={openTaskDetails}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
               onDrop={handleDrop}
@@ -616,11 +904,25 @@ function Project() {
               onTaskTitleSubmit={handleTaskTitleSubmit}
               onTaskEditKeyDown={handleTaskEditKeyDown}
               onDeleteTask={handleDeleteTask}
+              onOpenTaskDetails={openTaskDetails}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
               onDrop={handleDrop}
             />
           </div>
+
+          {hasMoreTasks && (
+            <div className="task-pagination">
+              <button
+                type="button"
+                className="task-pagination-button"
+                onClick={loadMoreTasks}
+                disabled={isLoadingTasks}
+              >
+                {isLoadingTasks ? "Loading..." : "Load more tasks"}
+              </button>
+            </div>
+          )}
         </main>
 
         <ProjectMembers
@@ -821,6 +1123,162 @@ function Project() {
           </div>
         </div>
       </Modal>
+
+      <Modal
+        isOpen={!!selectedTask}
+        title={selectedTask?.title ?? "Task details"}
+        onClose={closeTaskDetails}
+      >
+        {selectedTask && (
+          <div className="task-details">
+            <div className="task-details-meta">
+              <div>
+                <strong>Priority:</strong> {selectedTask.priority}
+              </div>
+
+              <div>
+                <strong>Status:</strong> {selectedTask.status}
+              </div>
+
+              <div>
+                <strong>Assignee:</strong>{" "}
+                {selectedTask.assigneeId
+                  ? getMemberName(selectedTask.assigneeId, project.members)
+                  : "Unassigned"}
+              </div>
+            </div>
+
+            {taskDetailsError && (
+              <p className="task-details-error">{taskDetailsError}</p>
+            )}
+
+            <section className="task-details-section">
+              <h3>Comments</h3>
+
+              {isTaskDetailsLoading ? (
+                <p>Loading...</p>
+              ) : (
+                <>
+                  <div className="task-comment-form">
+                    <textarea
+                      placeholder="Write a comment..."
+                      value={commentDraft}
+                      onChange={(event) => setCommentDraft(event.target.value)}
+                      rows={3}
+                    />
+
+                    <button
+                      type="button"
+                      className="task-pagination-button"
+                      onClick={handleAddComment}
+                      disabled={!commentDraft.trim()}
+                    >
+                      Add comment
+                    </button>
+                  </div>
+
+                  <div className="task-comment-list">
+                    {taskComments.length === 0 ? (
+                      <p className="task-details-empty">No comments yet</p>
+                    ) : (
+                      taskComments.map((comment) => (
+                        <article key={comment.id} className="task-comment">
+                          <div className="task-comment-header">
+                            <strong>{comment.user.nickName}</strong>
+
+                            <span>
+                              {new Date(comment.createdAt).toLocaleString()}
+                            </span>
+                          </div>
+
+                          {editingCommentId === comment.id ? (
+                            <textarea
+                              value={editingCommentContent}
+                              onChange={(event) =>
+                                setEditingCommentContent(event.target.value)
+                              }
+                              rows={3}
+                            />
+                          ) : (
+                            <p>{comment.content}</p>
+                          )}
+
+                          {comment.userId === currentUserId && (
+                            <div className="task-comment-actions">
+                              {editingCommentId === comment.id ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleUpdateComment(comment.id)
+                                    }
+                                  >
+                                    Save
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingCommentId(null);
+                                      setEditingCommentContent("");
+                                    }}
+                                  >
+                                    Cancel
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => beginCommentEdit(comment)}
+                                  >
+                                    Edit
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleDeleteComment(comment.id)
+                                    }
+                                  >
+                                    Delete
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </article>
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
+            </section>
+
+            <section className="task-details-section">
+              <h3>Status history</h3>
+
+              {taskHistory.length === 0 ? (
+                <p className="task-details-empty">No status changes yet</p>
+              ) : (
+                <div className="task-history-list">
+                  {taskHistory.map((entry) => (
+                    <article key={entry.id} className="task-history-item">
+                      <strong>{entry.changedBy.nickName}</strong>
+                      <span>
+                        {entry.oldStatus} -&gt; {entry.newStatus}
+                      </span>
+                      <small>
+                        {new Date(entry.createdAt).toLocaleString()}
+                      </small>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
+        )}
+      </Modal>
     </>
   );
 }
@@ -841,6 +1299,7 @@ type TaskColumnProps = {
     task: Task,
   ) => void;
   onDeleteTask: (taskId: string) => void;
+  onOpenTaskDetails: (task: Task) => void;
 
   onDragStart: (event: DragEvent<HTMLElement>, task: Task) => void;
 
@@ -862,6 +1321,7 @@ function TaskColumn({
   onTaskTitleSubmit,
   onTaskEditKeyDown,
   onDeleteTask,
+  onOpenTaskDetails,
   onDragStart,
   onDragEnd,
   onDrop,
@@ -986,6 +1446,14 @@ function TaskColumn({
                 onClick={() => onDeleteTask(task.id)}
               >
                 Delete
+              </button>
+
+              <button
+                type="button"
+                className="task-inline-button task-details-button"
+                onClick={() => onOpenTaskDetails(task)}
+              >
+                Details
               </button>
 
               {task.dueDate && (

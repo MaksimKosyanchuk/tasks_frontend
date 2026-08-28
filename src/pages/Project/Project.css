@@ -714,6 +714,37 @@
 }
 
 .invite-member input::placeholder {
+  .task-pagination {
+    display: flex;
+    justify-content: center;
+
+    margin-top: 16px;
+  }
+
+  .task-pagination-button {
+    height: 36px;
+
+    padding: 0 14px;
+
+    border: 1px solid #d9dadd;
+    border-radius: 9px;
+
+    background: #fff;
+    color: #1d1d1f;
+
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .task-pagination-button:hover:not(:disabled) {
+    background: #f8f8f8;
+  }
+
+  .task-pagination-button:disabled {
+    opacity: 0.55;
+
+    cursor: default;
+  }
   color: #a0a3a8;
 }
 
@@ -790,6 +821,156 @@
   opacity: 0.5;
 
   cursor: default;
+}
+
+.task-details {
+  display: flex;
+  flex-direction: column;
+
+  gap: 16px;
+}
+
+.task-details-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  gap: 10px;
+
+  padding: 12px;
+
+  border: 1px solid #e8e8e8;
+  border-radius: 10px;
+
+  background: #fafafa;
+
+  font-size: 13px;
+}
+
+.task-details-section h3 {
+  margin: 0 0 10px;
+
+  font-size: 14px;
+}
+
+.task-details-error {
+  margin: 0;
+
+  color: #b44;
+
+  font-size: 13px;
+}
+
+.task-details-empty {
+  margin: 0;
+
+  color: #888;
+
+  font-size: 13px;
+}
+
+.task-comment-form {
+  display: flex;
+  flex-direction: column;
+
+  gap: 8px;
+
+  margin-bottom: 12px;
+}
+
+.task-comment-form textarea,
+.task-comment textarea {
+  width: 100%;
+  box-sizing: border-box;
+
+  padding: 10px 11px;
+
+  border: 1px solid #d9dadd;
+  border-radius: 8px;
+
+  outline: none;
+
+  background: #fff;
+  color: #1d1d1f;
+
+  font: inherit;
+}
+
+.task-comment-list,
+.task-history-list {
+  display: flex;
+  flex-direction: column;
+
+  gap: 8px;
+}
+
+.task-comment {
+  padding: 12px;
+
+  border: 1px solid #e8e8e8;
+  border-radius: 10px;
+
+  background: #fff;
+}
+
+.task-comment-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 8px;
+
+  margin-bottom: 8px;
+
+  font-size: 12px;
+  color: #777;
+}
+
+.task-comment p {
+  margin: 0;
+
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.task-comment-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+
+  margin-top: 10px;
+}
+
+.task-comment-actions button {
+  padding: 0;
+
+  border: 0;
+  background: transparent;
+
+  color: #1d1d1f;
+
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.task-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 12px;
+
+  padding: 11px 12px;
+
+  border: 1px solid #e8e8e8;
+  border-radius: 10px;
+
+  background: #fff;
+
+  font-size: 13px;
+}
+
+.task-history-item small {
+  color: #888;
 }
 
 /* ==================== */
