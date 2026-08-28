@@ -1,0 +1,34 @@
+.breadcrumbs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    padding: 16px 0;
+
+    font-size: 14px;
+    line-height: 20px;
+}
+
+.breadcrumbs a {
+    color: #6b7280;
+    text-decoration: none;
+
+    transition:
+        color 0.15s ease,
+        opacity 0.15s ease;
+}
+
+.breadcrumbs a:hover {
+    color: #111827;
+}
+
+.breadcrumbs span {
+    color: #c4c7cc;
+    user-select: none;
+}
+
+/* Последний breadcrumb */
+.breadcrumbs a:last-child {
+    color: #111827;
+    font-weight: 500;
+}

@@ -65,3 +65,99 @@
     color: #111;
     font-weight: 500;
 }
+.create-workspace {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.create-workspace label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #4b4f56;
+}
+
+.create-workspace input {
+    width: 100%;
+    box-sizing: border-box;
+
+    padding: 10px 11px;
+
+    border: 1px solid #d9dadd;
+    border-radius: 7px;
+
+    outline: none;
+
+    font-size: 14px;
+    color: #1d1d1f;
+
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+.create-workspace input::placeholder {
+    color: #a0a3a8;
+}
+
+.create-workspace input:focus {
+    border-color: #999da4;
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
+}
+
+.create-workspace-error {
+    margin: 2px 0 4px;
+
+    font-size: 13px;
+    line-height: 18px;
+    color: #d14343;
+}
+
+.create-workspace-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+
+    margin-top: 12px;
+}
+
+.create-workspace-actions button {
+    padding: 8px 14px;
+
+    border: 1px solid #dedede;
+    border-radius: 7px;
+
+    font-size: 14px;
+    font-weight: 500;
+
+    cursor: pointer;
+
+    transition:
+        background-color 0.15s ease,
+        opacity 0.15s ease;
+}
+
+.create-workspace-actions button:first-child {
+    background: #fff;
+    color: #4b4f56;
+}
+
+.create-workspace-actions button:first-child:hover:not(:disabled) {
+    background: #f5f5f5;
+}
+
+.create-workspace-actions button:last-child {
+    border-color: #1d1d1f;
+
+    background: #1d1d1f;
+    color: #fff;
+}
+
+.create-workspace-actions button:last-child:hover:not(:disabled) {
+    background: #333438;
+}
+
+.create-workspace-actions button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}

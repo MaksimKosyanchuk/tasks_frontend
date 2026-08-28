@@ -11,8 +11,11 @@ import {
 
 import {
     getProject,
+    updateProjectMember,
+    removeProjectMember,
     type Project as ProjectType,
     type ProjectMember,
+    addProjectMember,
 } from '../../api/projects.api';
 
 import {
@@ -26,15 +29,44 @@ import {
     useAuth,
 } from '../../context/useAuth';
 
+import Modal from '../../components/Modal/Modal';
 import Breadcrumbs from '../../components/BreadCrumbs/BreadCrumbs';
 
 import './Project.css';
 
+
+
 function Project() {
+    type EditingTaskField = {
+        taskId: string;
+        field: 'title' | 'priority' | 'assigneeId';
+    } | null;
+
     const {
         workspaceId,
         projectId,
     } = useParams();
+
+    const [
+        isInviteModalOpen,
+        setIsInviteModalOpen,
+    ] = useState(false);
+
+
+    const [
+        memberEmail,
+        setMemberEmail,
+    ] = useState('');
+
+    const [
+        isInviting,
+        setIsInviting,
+    ] = useState(false);
+
+    const [
+        memberError,
+        setMemberError,
+    ] = useState<string | null>(null);
 
     const {
         accessToken,
@@ -90,7 +122,6 @@ function Project() {
             return;
         }
 
-        setIsLoading(true);
 
         getProject(
             workspaceId,
@@ -155,6 +186,91 @@ function Project() {
         },
     );
 
+    const handleAddMember = async () => {
+        if (
+            !accessToken ||
+            !workspaceId ||
+            !projectId ||
+            !memberEmail.trim()
+        ) {
+            return;
+        }
+
+        setIsInviting(true);
+        setMemberError(null);
+
+        try {
+            await addProjectMember(workspaceId, projectId, memberEmail, accessToken)
+
+            setMemberEmail('');
+            setIsInviteModalOpen(false);
+
+            const updatedProject = await getProject(
+                workspaceId,
+                projectId,
+                accessToken,
+            );
+
+            setProject(updatedProject);
+            setTasks(updatedProject.tasks);
+        } catch (error) {
+            if (error instanceof Error) {
+                setMemberError(error.message);
+            } else {
+                setMemberError(
+                    'Failed to add member',
+                );
+            }
+        } finally {
+            setIsInviting(false);
+        }
+    };
+
+    const handleChangeRole = async (
+        userId: string,
+        role: "OWNER" | "MEMBER"
+    ) => {
+        await updateProjectMember(
+            workspaceId!,
+            projectId!,
+            userId,
+            role,
+            accessToken!
+        );
+
+        setProject((prev) => {
+            if(!prev) {
+                return prev
+            }
+            return (
+                {
+                    ...prev,
+                    members: prev.members.map((member) =>
+                        member.userId === userId
+                            ? {
+                                ...member,
+                                role,
+                            }
+                            : member
+                    ),
+                }
+            )
+        });
+    };
+
+    const handleRemoveMember = async (userId: string) => {
+        await removeProjectMember(workspaceId!, projectId!, userId, accessToken!)
+
+        setProject((prev) => {
+            if(!prev) return prev
+
+            return ({
+                ...prev,
+                members: prev?.members.filter((member) => member.user.id !== userId)
+            })
+        })
+    }
+
     const handleDragStart = (
         event: React.DragEvent<HTMLElement>,
         task: Task,
@@ -197,7 +313,6 @@ function Project() {
             return;
         }
 
-        // Сразу меняем колонку на UI
         setTasks((currentTasks) =>
             currentTasks.map(
                 (task) =>
@@ -225,8 +340,6 @@ function Project() {
         } catch (error) {
             console.error(error);
 
-            // Если PATCH не прошёл,
-            // возвращаем старый статус
             setTasks((currentTasks) =>
                 currentTasks.map(
                     (task) =>
@@ -421,8 +534,81 @@ function Project() {
 
                 <ProjectMembers
                     members={project.members}
+                    onAddMember={() => { setIsInviteModalOpen(true)}}
+                    onRoleChange={handleChangeRole}
+                    onRemoveMember={handleRemoveMember}
                 />
             </section>
+            <Modal
+                isOpen={isInviteModalOpen}
+                title="Invite member"
+                onClose={() => {
+                    if (isInviting) {
+                        return;
+                    }
+
+                    setIsInviteModalOpen(false);
+                    setMemberEmail('');
+                    setMemberError(null);
+                }}
+            >
+                <div className="invite-member">
+                    <label htmlFor="project-member-email">
+                        Email
+                    </label>
+
+                    <input
+                        id="project-member-email"
+                        type="email"
+                        placeholder="member@example.com"
+                        value={memberEmail}
+                        onChange={(event) =>
+                            setMemberEmail(
+                                event.target.value,
+                            )
+                        }
+                        onKeyDown={(event) => {
+                            if (event.key === 'Enter') {
+                                handleAddMember();
+                            }
+                        }}
+                        autoFocus
+                    />
+
+                    {memberError && (
+                        <p className="invite-member-error">
+                            {memberError}
+                        </p>
+                    )}
+
+                    <div className="invite-member-actions">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setIsInviteModalOpen(false);
+                                setMemberEmail('');
+                                setMemberError(null);
+                            }}
+                            disabled={isInviting}
+                        >
+                            Cancel
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={handleAddMember}
+                            disabled={
+                                isInviting ||
+                                !memberEmail.trim()
+                            }
+                        >
+                            {isInviting
+                                ? 'Inviting...'
+                                : 'Invite'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
         </>
     );
 }
@@ -563,29 +749,50 @@ function getMemberName(
     );
 }
 
+
 type ProjectMembersProps = {
     members: ProjectMember[];
+    onAddMember: () => void;
+    onRoleChange: (userId: string, role: "OWNER" | "MEMBER") => void;
+    onRemoveMember: (userId: string) => void;
 };
 
 function ProjectMembers({
     members,
+    onAddMember,
+    onRoleChange,
+    onRemoveMember
 }: ProjectMembersProps) {
+
     return (
         <aside className="project-members">
             <div className="project-members-header">
-                <h2>Members</h2>
+                <div>
+                    <h2>Members</h2>
+
+                    <span className="project-members-count">
+                        {members.length}
+                    </span>
+                </div>
 
                 <button
                     type="button"
                     className="add-member-button"
+                    onClick={onAddMember}
+                    aria-label="Add member"
                 >
                     +
                 </button>
             </div>
 
             <div className="project-members-list">
-                {members.map(
-                    (member) => (
+                {members.length === 0 ? (
+                    <p className="no-project-members">
+                        No members yet
+                    </p>
+                ) : (
+                    members.map((member) => (
+                        
                         <div
                             key={member.id}
                             className="project-member"
@@ -593,16 +800,14 @@ function ProjectMembers({
                             <div className="project-member-info">
                                 <strong>
                                     {
-                                        member
-                                            .user
+                                        member.user
                                             .nickName
                                     }
                                 </strong>
 
                                 <span>
                                     {
-                                        member
-                                            .user
+                                        member.user
                                             .email
                                     }
                                 </span>
@@ -612,7 +817,7 @@ function ProjectMembers({
                                 value={
                                     member.role
                                 }
-                                onChange={() => {}}
+                                onChange={(e) => onRoleChange(member.user.id, e.target.value as "OWNER" | "MEMBER")}
                             >
                                 <option value="OWNER">
                                     Owner
@@ -626,11 +831,12 @@ function ProjectMembers({
                             <button
                                 type="button"
                                 className="delete-member-button"
+                                onClick={() => onRemoveMember(member.user.id)}
                             >
-                                Delete
+                                Remove
                             </button>
                         </div>
-                    ),
+                    ))
                 )}
             </div>
         </aside>

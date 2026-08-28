@@ -54,3 +54,99 @@ export async function getProject(
 
     return response.json();
 }
+
+export async function createProject(
+    workspaceId: string,
+    data: {
+        name: string,
+        description?: string
+    },
+    accessToken: string
+    ) {
+        const response = await apiFetch(`/workspaces/${workspaceId}/projects`,
+            {
+                method: "Post",
+                body: JSON.stringify(data)
+            },
+            accessToken
+        )
+
+        if(!response.ok) {
+            const error = await response.json();
+
+            throw new Error(
+                error.message || 'Failed to create project',
+            );
+        }
+        return response.json()
+}
+
+export async function addProjectMember(
+    workspaceId: string,
+    projectId: string,
+    email: string,
+    accessToken: string
+) {
+    const response = await apiFetch(`/workspaces/${workspaceId}/projects/${projectId}/members`,
+        {
+            method: "POST",
+            body: JSON.stringify({
+                email
+            })
+        },
+        accessToken
+    )
+
+    if(!response.ok) {
+        const error = await response.json()
+
+        throw new Error(
+            error.message || "Failed to add member"
+        )
+    }
+}
+
+export async function updateProjectMember(
+    workspaceId: string,
+    projectId: string,
+    userId: string,
+    role: "OWNER" | "MEMBER",
+    accessToken: string
+) {
+    const response = await apiFetch(`/workspaces/${workspaceId}/projects/${projectId}/members/${userId}`,
+        {
+            method: "PATCH",
+            body: JSON.stringify({ role: role })
+        },
+        accessToken
+    ) 
+
+    if(!response.ok) {
+        const error = await response.json()
+
+        throw new Error(error.message || "Failed to update role")
+    }
+
+    return response.json()
+}
+
+export async function removeProjectMember(
+    workspaceId: string,
+    projectId: string,
+    userId: string,
+    accessToken: string
+) {
+    const response = await apiFetch(`/workspaces/${workspaceId}/projects/${projectId}/members/${userId}`,
+        {
+            method: "DELETE",
+            body: JSON.stringify({ userId: userId })
+        },
+        accessToken
+    )
+
+    if(!response.ok) {
+        const error = await response.json()
+
+        throw new Error(error.message || "Failed to remove member")
+    }
+}

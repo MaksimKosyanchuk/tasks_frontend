@@ -18,10 +18,6 @@ export function AuthProvider({
         useState(true);
 
     useEffect(() => {
-        console.log("useEffect", accessToken)
-    } , [accessToken])
-
-    useEffect(() => {
         refreshAccessToken()
             .then(({ accessToken }) =>{
                 setAccessToken(accessToken);
