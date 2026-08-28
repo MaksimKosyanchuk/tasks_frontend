@@ -484,7 +484,7 @@ function Project() {
         setIsCreatingTask(true);
 
         try {
-            const createdTask = await createTask(
+            await createTask(
                 workspaceId!,
                 projectId!,
                 {

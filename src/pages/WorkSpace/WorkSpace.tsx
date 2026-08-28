@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
     useParams,
+    useNavigate,
 } from 'react-router-dom';
 
 import {
@@ -24,6 +25,8 @@ import './WorkSpace.css';
 function Workspace() {
     const { workspaceId } = useParams();
     const { accessToken } = useAuth();
+
+    const navigate = useNavigate();
 
     const [currentWorkspace, setCurrentWorkspace] =
         useState<WorkspaceType | null>(null);
