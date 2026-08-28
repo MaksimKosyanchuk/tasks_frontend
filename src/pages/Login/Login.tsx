@@ -38,42 +38,68 @@ function Login() {
     };
 
     return (
-        <main>
-            <h1>Login</h1>
+        <main className="auth-page">
+            <form
+                className="auth-form"
+                onSubmit={handleSubmit}
+            >
+                <h1>Login</h1>
 
-            <form onSubmit={handleSubmit}>
-                <div>
-                    <label htmlFor="email">Email</label>
+                <div className="auth-field">
+                    <label htmlFor="email">
+                        Email
+                    </label>
 
                     <input
                         id="email"
                         type="email"
                         value={email}
-                        onChange={(event) => setEmail(event.target.value)}
+                        onChange={(event) =>
+                            setEmail(event.target.value)
+                        }
                         required
                     />
                 </div>
 
-                <div>
-                    <label htmlFor="password">Password</label>
+                <div className="auth-field">
+                    <label htmlFor="password">
+                        Password
+                    </label>
 
                     <input
                         id="password"
                         type="password"
                         value={password}
-                        onChange={(event) => setPassword(event.target.value)}
+                        onChange={(event) =>
+                            setPassword(event.target.value)
+                        }
                         required
                     />
                 </div>
-                {error && <p>{error}</p>}
-                <button type="submit" disabled={isLoading}>
-                    {isLoading ? 'Logging in...' : 'Login'}
-                </button>
-            </form>
 
-            <p>
-                Don't have an account? <Link to="/register">Register</Link>
-            </p>
+                {error && (
+                    <p className="auth-error">
+                        {error}
+                    </p>
+                )}
+
+                <button
+                    className="auth-button"
+                    type="submit"
+                    disabled={isLoading}
+                >
+                    {isLoading
+                        ? 'Logging in...'
+                        : 'Login'}
+                </button>
+
+                <p className="auth-link">
+                    Don't have an account?{' '}
+                    <Link to="/register">
+                        Register
+                    </Link>
+                </p>
+            </form>
         </main>
     );
 }
