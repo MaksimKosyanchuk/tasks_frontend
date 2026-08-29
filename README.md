@@ -11,6 +11,8 @@ Frontend частина застосунку для керування зада�
 * Vite
 * React Router
 * Socket.IO Client
+* Vitest
+* React Testing Library
 * Docker
 
 ---
@@ -63,6 +65,7 @@ frontend/
 │   ├── components/
 │   ├── context/
 │   ├── pages/
+│   ├── test/
 │   └── main.tsx
 │
 ├── public/
@@ -88,7 +91,7 @@ Frontend реалізує основні сценарії застосунку:
 * створення задач;
 * редагування задач;
 * видалення задач;
-* зміна статусу;
+* зміна статусу (у тому числі drag-and-drop між колонками);
 * зміна priority;
 * призначення assignee;
 * перегляд історії зміни статусів.
@@ -126,12 +129,18 @@ Frontend підтримує:
 * створення задач;
 * редагування задач;
 * видалення задач;
-* зміну статусу;
+* зміну статусу, у тому числі перетягуванням картки між колонками (drag-and-drop);
 * зміну priority;
 * призначення assignee;
 * перегляд історії;
 * фільтрацію;
 * pagination.
+
+## Drag-and-drop
+
+Зміна статусу задачі підтримується перетягуванням картки між колонками дошки (`TODO` / `IN_PROGRESS` / `DONE`).
+
+Оновлення статусу виконується оптимістично: інтерфейс одразу відображає нову позицію картки, а запит на backend відправляється у фоні. Якщо запит завершується помилкою, зміна відкочується і картка повертається у попередню колонку.
 
 ## Фільтрація
 
@@ -192,6 +201,80 @@ Frontend отримує повідомлення від backend при:
 * створенні запису історії статусу.
 
 Завдяки цьому зміни можуть автоматично відображатися у клієнта без перезавантаження сторінки.
+
+---
+
+# Компоненти
+
+Логіка сторінки Project розділена на окремі компоненти за відповідальністю:
+
+```text
+components/
+├── TaskColumn/
+├── TaskCard/
+├── ProjectMembers/
+├── InviteMemberModal/
+├── CreateTaskModal/
+└── TaskDetailsModal/
+```
+
+Сторінка `Project` відповідає лише за стан, ефекти та композицію компонентів. Уся презентаційна логіка (рендер картки задачі, колонки дошки, модалок) винесена в окремі reusable-компоненти з власними стилями.
+
+---
+
+# Тестування
+
+Для frontend реалізовані unit-тести на базі **Vitest** та **React Testing Library**.
+
+## Налаштування
+
+```bash
+npm install -D vitest @testing-library/react @testing-library/jest-dom @testing-library/user-event jsdom
+```
+
+Конфігурація тестового середовища знаходиться у `vite.config.ts`:
+
+```typescript
+import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vitest/config'
+
+export default defineConfig({
+  plugins: [react()],
+  test: {
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.ts',
+    globals: true,
+  }
+})
+```
+
+Файл `src/test/setup.ts` підключає розширені матчери `jest-dom`:
+
+```typescript
+import '@testing-library/jest-dom';
+```
+
+## Покриття
+
+Тестами покритий компонент `TaskCard`:
+
+* коректний рендер назви, пріоритету, опису та імені виконавця задачі;
+* виклик `onDeleteTask` з правильним `id` задачі при кліку на кнопку видалення.
+
+Тести розташовані поряд із відповідним компонентом:
+
+```text
+components/TaskCard/
+├── TaskCard.tsx
+├── TaskCard.css
+└── TaskCard.test.tsx
+```
+
+Запуск тестів:
+
+```bash
+npm test
+```
 
 ---
 
@@ -362,13 +445,7 @@ Frontend обробляє основні HTTP помилки API:
 
 За наявності додаткового часу можна було б:
 
-* додати більше unit та E2E тестів;
-* покращити loading та skeleton states;
-* додати error boundaries;
-* реалізувати optimistic updates;
-* додати debounce для пошуку;
-* покращити UX фільтрів та pagination;
+* Додати розширене сортування задач
+* Реалізувати додавання користувачів до проектів та робочих просторів через запрошення + прийняття
 * покращити WebSocket reconnect handling;
-* додати drag-and-drop для задач;
-* винести повторювані UI елементи у reusable components;
-* додати більш детальну систему notifications.ff
+* додати більш детальну систему notifications.
