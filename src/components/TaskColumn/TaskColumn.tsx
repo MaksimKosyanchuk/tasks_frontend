@@ -1,8 +1,10 @@
-import type { DragEvent, KeyboardEvent } from 'react';
+import { useState, type DragEvent, type KeyboardEvent } from 'react';
 import type { Task, TaskStatus } from '../../api/tasks.api';
 import type { ProjectMember } from '../../api/projects.api';
 import type { EditingTaskField, TaskField } from '../../types/task.type';
 import TaskCard from '../TaskCard/TaskCard';
+
+import "./TaskColumn.css";
 
 type TaskColumnProps = {
     title: string;
@@ -10,6 +12,7 @@ type TaskColumnProps = {
     tasks: Task[];
     members: ProjectMember[];
     editingTask: EditingTaskField;
+    draggedTaskId: string | null;
     onBeginTaskEdit: (task: Task, field: TaskField) => void;
     onTaskEditChange: (value: string) => void;
     onTaskEditCommit: (taskId: string, field: TaskField, value: string) => void;
@@ -23,17 +26,28 @@ type TaskColumnProps = {
     onDrop: (event: DragEvent<HTMLElement>, status: TaskStatus) => void;
 };
 
-function TaskColumn({ title, status, tasks, members, onDrop, ...cardHandlers }: TaskColumnProps) {
+function TaskColumn({ title, status, tasks, members, draggedTaskId, onDrop, ...cardHandlers }: TaskColumnProps) {
+    const [isDragOver, setIsDragOver] = useState(false);
+
     const columnTasks = tasks.filter((task) => task.status === status);
 
     return (
         <section
-            className="task-column"
+            className={`task-column ${isDragOver ? 'drag-over' : ''}`}
             onDragOver={(event) => {
                 event.preventDefault();
                 event.dataTransfer.dropEffect = 'move';
+                if (!isDragOver) setIsDragOver(true);
             }}
-            onDrop={(event) => onDrop(event, status)}
+            onDragLeave={(event) => {
+                // игнорируем dragleave, если курсор просто перешёл на дочерний элемент внутри колонки
+                if (event.currentTarget.contains(event.relatedTarget as Node)) return;
+                setIsDragOver(false);
+            }}
+            onDrop={(event) => {
+                setIsDragOver(false);
+                onDrop(event, status);
+            }}
         >
             <div className="task-column-header">
                 <h2>{title}</h2>
@@ -42,7 +56,7 @@ function TaskColumn({ title, status, tasks, members, onDrop, ...cardHandlers }: 
 
             <div className="task-list">
                 {columnTasks.map((task) => (
-                    <TaskCard key={task.id} task={task} members={members} {...cardHandlers} />
+                    <TaskCard key={task.id} task={task} isDragging={draggedTaskId === task.id} members={members} {...cardHandlers} />
                 ))}
             </div>
         </section>

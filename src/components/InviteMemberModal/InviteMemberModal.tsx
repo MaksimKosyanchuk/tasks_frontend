@@ -1,5 +1,7 @@
 import Modal from '../../components/Modal/Modal';
 
+import "./InviteMemberModal.css";
+
 type InviteMemberModalProps = {
     isOpen: boolean;
     email: string;

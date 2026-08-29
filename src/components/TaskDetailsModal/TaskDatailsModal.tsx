@@ -3,6 +3,8 @@ import type { ProjectMember } from '../../api/projects.api';
 import type { Task, TaskComment, TaskStatusHistoryItem } from '../../api/tasks.api';
 import { getMemberName } from '../../utils/utils';
 
+import "./TaskDetailsModal.css";
+
 type TaskDetailsModalProps = {
     task: Task | null;
     members: ProjectMember[];

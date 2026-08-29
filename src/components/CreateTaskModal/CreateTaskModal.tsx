@@ -3,6 +3,8 @@ import type { ProjectMember } from '../../api/projects.api';
 import type { TaskPriority } from '../../api/tasks.api';
 import type { TaskCreateForm } from '../../types/task.type';
 
+import "./CreateTaskModal.css";
+
 type CreateTaskModalProps = {
     isOpen: boolean;
     form: TaskCreateForm;

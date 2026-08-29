@@ -1,4 +1,6 @@
-import type { ProjectMember } from '../../../api/projects.api';
+import type { ProjectMember } from '../../api/projects.api';
+
+import "./ProjectMembers.css";
 
 type ProjectMembersProps = {
     members: ProjectMember[];

@@ -477,6 +477,7 @@ function Project() {
         members: project.members,
         editingTask,
         onBeginTaskEdit: beginTaskEdit,
+        draggedTaskId: draggedTask?.id ?? null,
         onTaskEditChange: (value: string) => setEditingTask((current) => (current ? { ...current, value } : current)),
         onTaskEditCommit: applyTaskFieldChange,
         onTaskEditCancel: cancelTaskEdit,

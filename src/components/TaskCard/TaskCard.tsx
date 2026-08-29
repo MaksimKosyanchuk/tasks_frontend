@@ -4,10 +4,13 @@ import type { ProjectMember } from '../../api/projects.api';
 import type { EditingTaskField, TaskField } from '../../types/task.type';
 import { getMemberName } from '../../utils/utils';
 
+import "./TaskCard.css";
+
 type TaskCardProps = {
     task: Task;
     members: ProjectMember[];
     editingTask: EditingTaskField;
+    isDragging: boolean;
     onBeginTaskEdit: (task: Task, field: TaskField) => void;
     onTaskEditChange: (value: string) => void;
     onTaskEditCommit: (taskId: string, field: TaskField, value: string) => void;
@@ -24,6 +27,7 @@ function TaskCard({
     task,
     members,
     editingTask,
+    isDragging,
     onBeginTaskEdit,
     onTaskEditChange,
     onTaskEditCommit,
@@ -40,7 +44,7 @@ function TaskCard({
     const isEditingAssignee = editingTask?.taskId === task.id && editingTask.field === 'assigneeId';
 
     return (
-        <article className="task-card" draggable onDragStart={(event) => onDragStart(event, task)} onDragEnd={onDragEnd}>
+        <article className={`task-card ${isDragging ? 'dragging' : ''}`} draggable onDragStart={(event) => onDragStart(event, task)} onDragEnd={onDragEnd}>
             <div className="task-card-header">
                 {isEditingTitle ? (
                     <input
